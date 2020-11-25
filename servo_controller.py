@@ -294,3 +294,4 @@ rospy.Subscriber("servo_enable_power",Bool, callback_servoPWR_enable)
 
 
 rospy.spin()	#wait for events
+GPIO.cleanup()
