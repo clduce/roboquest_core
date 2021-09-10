@@ -23,6 +23,10 @@ DEVICE_ADDRESS = 0x53
 speed = 100.0
 enabledState = False
 
+
+#==============================================================
+# ROS Subscriber Callback functions
+
 def callback_speed(msg):
 	global speed
 	speed = msg.data
@@ -31,11 +35,14 @@ def callback_enable(msg):
 	global enabledState
 	if(msg.data == True):
 		GPIO.output(PIN_I2C6_POWER_ENABLE, GPIO.HIGH)
-		time.sleep(0.1)
+		time.sleep(0.2)
 		enabledState = True
+
 	if(msg.data ==False):
 		GPIO.output(PIN_I2C6_POWER_ENABLE, GPIO.LOW)
 		enabledState = False
+
+	pub_motorPwrState.publish(enabledState)
 
 #takes a 32bit integer and converts it into an array of 8bit ints
 def int_to_byte_array(num):
@@ -66,7 +73,7 @@ def byte_array_to_int(array):
 def callback_drivejs(data):
 	global speed
 	global enabledState
-	
+		
 	x = int(data.x * -speed)
 	y = int(data.y * speed)
 
@@ -89,28 +96,58 @@ def callback_drivejs(data):
 	left =int( max(-1000, min(left,1000)))
 	right = int(max(-1000,min(right,1000)))
 
-	try:
-		#Registers 3 and 4 hold the individual motor speed commands
-		bus.write_i2c_block_data(DEVICE_ADDRESS,3,int_to_byte_array(right))
-		bus.write_i2c_block_data(DEVICE_ADDRESS,4,int_to_byte_array(left))
-	except:
-		if( enabledState ):
-			time.sleep(0.1)
+	
+	#only send I2C commands to the motor controller if is enabled, ie powered up
+	if(enabledState):
+		#attempt to write to the I2C registers. Try max 3 times. Power off the motor
+		#controller if all three fail. 
+		success = False
+		loops = 3
+		while(not success and loops > 0 ):
+			try:
+				#Registers 3 and 4 hold the individual motor speed commands
+				bus.write_i2c_block_data(DEVICE_ADDRESS,3,int_to_byte_array(right))
+				bus.write_i2c_block_data(DEVICE_ADDRESS,4,int_to_byte_array(left))
+				success = True
+			except:
+				loops -= 1
+				print("Motor I2C error. Loop {0}".format(loops))
+				time.sleep(.01)
+
+		if(loops == 0):
+			print("Unable to communicate with Motors. Turning off Motor Power")
 			GPIO.output(PIN_I2C6_POWER_ENABLE, GPIO.LOW)	#disable the motor driver
-			print("Motor I2C error")
-			time.sleep(0.1)
-			GPIO.output(PIN_I2C6_POWER_ENABLE, GPIO.HIGH)	#enable the motor driver
+			enabledState = False
+			pub_motorPwrState.publish(False)
+
+
+	
+
+
 
 #===================================================================================
-
-GPIO.setmode(GPIO.BCM)
-GPIO.setup(PIN_I2C6_POWER_ENABLE, GPIO.OUT)
-
+#init the node with a name
 rospy.init_node('motor_controller', anonymous=True)
+
+
+#==============================================================
+# Setup the publishers
+pub_motorPwrState = rospy.Publisher('motor_controller_power_enable_state',Bool,queue_size = 1)
+
+
+#==============================================================
+# Setup the Subscribers
 rospy.Subscriber("drive_joystick",Vector3, callback_drivejs)
 rospy.Subscriber("motor_controller_power_enable",Bool, callback_enable)
 rospy.Subscriber("motor_controller_max_speed",Float64, callback_speed)
 
+#==============================================================
+#init all the GPIO
+GPIO.setmode(GPIO.BCM)
+GPIO.setup(PIN_I2C6_POWER_ENABLE, GPIO.OUT)
+
+#==============================================================
+#Everthing is setup and ready to run handlers
 rospy.spin()
 
 GPIO.cleanup()

@@ -22,6 +22,7 @@ PIN_DRIVER1 = 24
 PIN_DRIVER2 = 25
 PIN_CHARGER_DETECT = 7
 PIN_CHARGER_ENABLE = 21
+PIN_HANDSHAKE_2 = 22		
 SHUT_DOWN_TIMER_RELOAD = 10
 c = NetworkManager.const
 
@@ -39,6 +40,10 @@ def cb_chargerEnable(msg):
 	if(msg.data == False):
 		GPIO.output(PIN_CHARGER_ENABLE, GPIO.HIGH)	#Turn the charger off
 
+	pub_chargerEnabled.publish(msg.data)
+
+
+
 #Enable or disable the FET current driver #1
 def cb_driver1(msg):
 	if(msg.data == True):
@@ -53,44 +58,15 @@ def cb_driver2(msg):
 	if(msg.data == False):
 		GPIO.output(PIN_DRIVER2, GPIO.LOW)
 
-		
-#def cb_sleepTime(msg):
-#	print("Sleep time is")
-#	print(msg.data)
-#
-#def cb_sleepEnable(msg):
-#	print("Sleep Enable")
-#	
-#
-##callbacks for buttons that start and stop a shutdown or sleep sequence
-#def cb_shutdownStart(msg):
-#	global enterShutdownActive
-#	global enterSleepActive
-#	
-#	if(msg.data == True and enterShutdownActive == False):		#only start the shutdown proceedure if we are currently not preparing to shutdown
-#		enterSleepActive = False								#stop a sleep proceedure. Now we're getting ready to shut down
-#		enterShutdownActive = True
-#		print("Shutdown Sequence Started")
-#
-#def cb_sleepStart(msg):
-#	global enterShutdownActive
-#	global enterSleepActive
-#	
-#	if(msg.data == True and enterSleepActive == False):			#only start the sleep proceedure if we are currently not preparing to sleep
-#		enterShutdownActive = False								#stop a shutdown proceedure. Now we're getting getting ready to sleep
-#		enterSleepActive = True
-#		print("Sleep Sequence Started")
-#		
-#def cb_shutdownSleepStop(msg):
-#	global enterShutdownActive
-#	global enterSleepActive
-#	
-#	if(msg.data == True):
-#		enterShutdownActive = False
-#		enterSleepActive = False
-#		enterShutdownCounter = SHUT_DOWN_SLEEP_COUNTER_RELOAD
-#		enterSleepCounter = SHUT_DOWN_SLEEP_COUNTER_RELOAD
-#		print("Shutdown and sleep sequence Stopped")
+#Puts the robot to sleep for given number of minutes		
+def cb_sleepTime(msg):
+	print("Sleep time is")
+	print(msg.data)
+
+	ser.write("$$sleepTime={0}".format(msg.data))
+	ser.write("$$sleep")
+
+
 		
 
 		
@@ -124,6 +100,8 @@ def getSerialPortData(event=None):
 
 		if( x[0] == "$$SCREEN" ):	#Message requesting a screen of text
 
+			GPIO.output(PIN_HANDSHAKE_2, GPIO.LOW)	#signal the mcu not to send any more data while we process this
+
 			#remove the $$SCREEN from the start of list, and convert all to float
 			x.pop(0)
 			print("Show screen {0} {1}".format(x[0],x[1]))
@@ -156,6 +134,8 @@ def getSerialPortData(event=None):
 					join_network()
 					time.sleep(0.1)
 					ser.write("$$screen=3="+get_network_connections()+"\r")
+
+			GPIO.output(PIN_HANDSHAKE_2, GPIO.HIGH)	#signal the mcu we're ready for more data
 		
 		elif( x[0] == "$$TELEM" ):	#Message with telemetry data
 
@@ -252,6 +232,9 @@ def get_network_device():
 		else:
 			strengthString = '';
 		output = println(str((screen_pos % len(ac))+1)+'/'+str(len(ac)) + strengthString)+output
+		print("--S--")
+		print(output)
+		print("--E--")
 		return padResult(output)
 	except AttributeError:
 		return padResult(println('still connecting...')+println('')+println('press button to')+println('refresh'))
@@ -290,6 +273,9 @@ def get_network_connections():
 	else:
 		strengthString = '';
 	output = println(str((screen_pos % len(cn))+1)+'/'+str(len(cn)) + strengthString)+output
+	print("--S--")
+	print(output)
+	print("--E--")
 	return padResult(output)
 
 #pads text to clear the screen
@@ -337,6 +323,9 @@ pub_ADC4 = rospy.Publisher('voltage_adc_4',Float32,queue_size = 1)
 #Status of external charge power
 pub_chargerPwrState = rospy.Publisher('charger_power_state',Bool,queue_size = 1)
 
+#status of the state of the charger
+pub_chargerEnabled = rospy.Publisher('charger_enabled_state',Bool,queue_size = 1, latch = True)
+
 #Shutdown counter
 #pub_shutdownCounter = rospy.Publisher('shutdownCounter',Int32,queue_size = 1)
 
@@ -370,13 +359,18 @@ GPIO.output(PIN_CHARGER_ENABLE, GPIO.LOW)		#Low will enable the charger
 
 GPIO.setup(PIN_CHARGER_DETECT, GPIO.IN)
 
+GPIO.setup(PIN_HANDSHAKE_2, GPIO.OUT)
+GPIO.output(PIN_HANDSHAKE_2, GPIO.HIGH)			#set this pin high to signal the MCU that we are ok to accept serial data
+
 #==============================================================
 #Everthing is setup and ready to run handlers and event loops
 
 ser.flushInput()
 
 rospy.Timer(rospy.Duration(1.0/10.0), getSerialPortData)			#get data from the serial port 10/sec
-#rospy.Timer(rospy.Duration(1.0/1.0), shutdownLoop)
+
+#The charger IO is set to turn the charger on by default. Publish this as well
+pub_chargerEnabled.publish(True)
 
 rospy.spin()
 

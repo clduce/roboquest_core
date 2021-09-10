@@ -2,10 +2,7 @@
 #
 # servo_controller.py
 # Cory Duce cory.duce@gmail.com
-# Nov 24 2020
-# 
-# v1.0 -Initial release
-#
+
 
 import rospy
 import RPi.GPIO as GPIO
@@ -106,7 +103,7 @@ def servo(channel, angle):
 	
 	channel = constrain(channel,0,15)
 	if( (servoPowerEnabled==True) and (servo_enabled[channel]==True) ):
-		print("here")
+		
 		angle = constrain(angle, 0, servo_settings.servo_max_angle[channel])
 		servo_saved_angle[channel] = angle;
 		onCount  = 0
@@ -117,13 +114,12 @@ def servo(channel, angle):
 		
 def set_pwm(channel, on, off):
 	try:
-		print("here2")
+		
 		bus.write_byte_data(DEVICE_ADDRESS, LED0_ON_L+4*channel, on & 0xFF)
 		bus.write_byte_data(DEVICE_ADDRESS, LED0_ON_H+4*channel, on >> 8)
 		bus.write_byte_data(DEVICE_ADDRESS, LED0_OFF_L+4*channel, off & 0xFF)
 		bus.write_byte_data(DEVICE_ADDRESS, LED0_OFF_H+4*channel, off >> 8)
 	except Exception as e:
-		print("except on set_pwm")
 		print(e)
 
 
@@ -242,10 +238,15 @@ def callback_servo15_enable(msg):
 		servoDisable(15)
 
 def callback_servoPWR_enable(msg):
+	#republish for feedback to the UI	
+	pub_servo_enable_power_state.publish(msg.data)
+	
 	if msg.data == True:
 		powerEnable()
 	else:
 		powerDisable()
+
+	
 
 #setup the pin that controls the power to the servo and driver chip
 GPIO.setmode(GPIO.BCM)
@@ -292,6 +293,12 @@ rospy.Subscriber("servo_enable_15",Bool, callback_servo15_enable)
 #callback for enabling or disabling power to all servos
 rospy.Subscriber("servo_enable_power",Bool, callback_servoPWR_enable)
 
+#status of the state of the power to the servos
+pub_servo_enable_power_state = rospy.Publisher('servo_enable_power_state',Bool,queue_size = 1, latch = True)
+
+#start with the power off to the servos and also publish this to the UI
+pub_servo_enable_power_state.publish(False)
+powerDisable()
 
 rospy.spin()	#wait for events
 GPIO.cleanup()

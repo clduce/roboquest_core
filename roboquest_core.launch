@@ -1,4 +1,5 @@
 <launch>
+	<!-- <node name="roboquest_core" pkg="roboquest_core" type="roboquest_base.py" respawn="true" /> -->
 	<node name="servo_controller" pkg="roboquest_core" type="servo_controller.py" respawn="true" />
 	<node name="motor_controller" pkg="roboquest_core" type="motor_controller.py" respawn="true" />
 </launch>
