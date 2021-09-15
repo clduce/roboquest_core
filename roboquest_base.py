@@ -321,7 +321,7 @@ pub_ADC3 = rospy.Publisher('voltage_adc_3',Float32,queue_size = 1)
 pub_ADC4 = rospy.Publisher('voltage_adc_4',Float32,queue_size = 1)
 
 #Status of external charge power
-pub_chargerPwrState = rospy.Publisher('charger_power_state',Bool,queue_size = 1)
+pub_chargerPwrState = rospy.Publisher('charger_power_state',Bool,queue_size = 1,  latch = True)
 
 #status of the state of the charger
 pub_chargerEnabled = rospy.Publisher('charger_enabled_state',Bool,queue_size = 1, latch = True)

@@ -132,7 +132,7 @@ rospy.init_node('motor_controller', anonymous=True)
 
 #==============================================================
 # Setup the publishers
-pub_motorPwrState = rospy.Publisher('motor_controller_power_enable_state',Bool,queue_size = 1)
+pub_motorPwrState = rospy.Publisher('motor_controller_power_enable_state',Bool,queue_size = 1, latch = True)
 
 
 #==============================================================
@@ -145,6 +145,9 @@ rospy.Subscriber("motor_controller_max_speed",Float64, callback_speed)
 #init all the GPIO
 GPIO.setmode(GPIO.BCM)
 GPIO.setup(PIN_I2C6_POWER_ENABLE, GPIO.OUT)
+
+GPIO.output(PIN_I2C6_POWER_ENABLE, GPIO.LOW)
+pub_motorPwrState.publish(False)
 
 #==============================================================
 #Everthing is setup and ready to run handlers
