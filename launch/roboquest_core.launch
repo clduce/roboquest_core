@@ -1,0 +1,24 @@
+<launch>
+  <env name="ROSCONSOLE_CONFIG_FILE"
+       value="$(find roboquest_core)/launch/rosconsole_config"/>
+
+  <env name="ROSCONSOLE_FORMAT"
+       value="${time} ${severity} ${node}-${function}: ${message}"/>
+
+  <env name="ROS_PYTHON_LOG_CONFIG_FILE"
+       value="$(find roboquest_core)/launch/rospython_config"/>
+
+  <node
+    name="servo_controller"
+    pkg="roboquest_core"
+    type="servo_controller.py"
+    respawn="false">
+  </node>
+
+  <node
+    name="motor_controller"
+    pkg="roboquest_core"
+    type="motor_controller.py"
+    respawn="false">
+  </node>
+</launch>
