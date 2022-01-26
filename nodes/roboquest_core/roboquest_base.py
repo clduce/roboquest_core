@@ -33,8 +33,25 @@ ENABLE = GPIO.HIGH
 DISABLE = GPIO.LOW
 c = NetworkManager.const
 
+#
+# Screen IDs
+#
+HOME = '1'
+DEVICES = '2'
+CONNECTIONS = '3'
+MISC = '4'
+ABOUT = '5'
+
+#
+# Button IDs
+#
+DOWN = '-1'
+UP = '1'
+ENTER = '2'
+NO_BUTTON = '0'
+
 #Globals
-screen_pos = 0
+screen_page = 0
 oldx1 = 0
 
 #==============================================================
@@ -67,26 +84,42 @@ def cb_driver2(msg):
 
 #Puts the robot to sleep for given number of minutes        
 def cb_sleepTime(msg):
-    print("Sleep time is")
-    print(msg.data)
-
-    hat.write("$$sleepTime={0}".format(msg.data))
-    hat.write("$$sleep")
-
-
-        
-
+    hat.write(
+        bytearray(
+            "$$sleepTime={0}".format(msg.data),
+            'ascii'))
+    hat.write(
+        bytearray(
+            "$$sleep",
+            'ascii'))
         
 #Event that runs 10/sec checking for new serial port messages from the Pi
 def getSerialPortData(event=None):
-    global screen_pos
+    """
+    $$SCREEN <screen ID> <button ID>\r
+
+    <screen ID>
+    1 Home - controlled by HAT
+    2 Network devices - controlled by Pi
+    3 Network connections - controlled by Pi
+    4 Network et cetera (unused) - controlled by Pi
+    5 About - controlled by HAT
+
+    <button ID>
+    -1 down
+    0 <no button pressed>
+    1 up
+    2 center (Enter)
+    """
+
+    global screen_page
     global oldx1
 
     #==============================================================
     #variables for ROS data to be published
     
-    batteryVoltage = Float32()                #battery voltage in volts. 12 volt nominal
-    batteryCurrent = Float32()                #battery current in mA. Positive when current flowing into battery ie charging, negative when battery is discharging
+    battery_volts = Float32()
+    battery_milliamps = Float32()                #battery current in mA. Positive when current flowing into battery ie charging, negative when battery is discharging
     systemCurrent = Float32()                #system current in mA. This is current that is powering the robot. Positive when system is running. Should not be negative
     
     ADC0 = Float32()                        #ADC inputs. 0-3.3 volts
@@ -102,61 +135,82 @@ def getSerialPortData(event=None):
     # The data is in string format "$$$ value1 value2 ... valueN \n"
     #try:
     msg = hat.readline().decode('ascii')
-    x = msg.split()
-    rospy.logdebug_throttle(5, f"HAT message:{x}")
-    if( len(x) > 0):
+    fields = msg.split()
+    if fields:
+        msg_type = fields[0]
 
-        if( x[0] == '$$SCREEN' ):    #Message requesting a screen of text
-            rospy.logdebug_throttle(5, f"Screen")
+        if msg_type == '$$SCREEN':
+            screen_id = fields[1]
+            button_id = fields[2]
 
             GPIO.output(HAT_MCU_CONTROL_PIN, DISABLE)
 
-            #remove the $$SCREEN from the start of list, and convert all to float
-            x.pop(0)
-            print("Show screen {0} {1}".format(x[0],x[1]))
-            
-            if(x[0] != oldx1):
-                oldx1 = x[0]
-                screen_pos = 0
+            if screen_id != oldx1:
+                oldx1 = screen_id
+                screen_page = 0
                 
-            if(x[0] == '2'):
-                if(x[1] == '0'):
-                    hat.write("$$screen=2="+get_network_device()+"\r")
-                elif(x[1] == '1'):
-                    screen_pos += 1
-                    hat.write("$$screen=2="+get_network_device()+"\r")
-                elif(x[1] == '-1'):
-                    screen_pos -= 1
-                    hat.write("$$screen=2="+get_network_device()+"\r")
+            if(screen_id == DEVICES):
+                if button_id == NO_BUTTON:
+                    hat.write(
+                        bytearray(
+                            "$$screen=2="+get_network_device()+"\r",
+                            'ascii'))
+                elif button_id == UP:
+                    screen_page += 1
+                    hat.write(
+                        bytearray(
+                            "$$screen=2="+get_network_device()+"\r",
+                            'ascii'))
+                elif button_id == DOWN:
+                    screen_page -= 1
+                    hat.write(
+                        bytearray(
+                            "$$screen=2="+get_network_device()+"\r",
+                            'ascii'))
 
-            if(x[0] == '3'):                
-                if(x[1] == '0'):
-                    hat.write("$$screen=3="+get_network_connections()+"\r")
-                elif(x[1] == '1'):
-                    screen_pos += 1
-                    hat.write("$$screen=3="+get_network_connections()+"\r")
-                elif(x[1] == '-1'):
-                    screen_pos -= 1
-                    hat.write("$$screen=3="+get_network_connections()+"\r")
-                elif(x[1] == '2'):
-                    hat.write("$$screen=3="+padResult(println('Connecting...'))+"\r")
+            if screen_id == CONNECTIONS:                
+                if button_id == NO_BUTTON:
+                    hat.write(
+                        bytearray(
+                            "$$screen=3="+get_network_connections()+"\r",
+                            'ascii'))
+                elif button_id == UP:
+                    screen_page += 1
+                    hat.write(
+                        bytearray(
+                            "$$screen=3="+get_network_connections()+"\r",
+                            'ascii'))
+                elif button_id == DOWN:
+                    screen_page -= 1
+                    hat.write(
+                        bytearray(
+                            "$$screen=3="+get_network_connections()+"\r",
+                            'ascii'))
+                elif button_id == ENTER:
+                    hat.write(
+                        bytearray(
+                            "$$screen=3="+padResult(println('Connecting...'))+"\r",
+                            'ascii'))
                     join_network()
                     time.sleep(0.1)
-                    hat.write("$$screen=3="+get_network_connections()+"\r")
+                    hat.write(
+                        bytearray(
+                            "$$screen=3="+get_network_connections()+"\r",
+                            'ascii'))
 
             GPIO.output(HAT_MCU_CONTROL_PIN, ENABLE)
         
-        elif( x[0] == '$$TELEM' ):    #Message with telemetry data
+        elif msg_type == '$$TELEM':
             rospy.logdebug_throttle(5, f"Telem")
 
             #remove the $$TELEM from the start of list, and convert all to float
-            x.pop(0)    
+            fields.pop(0)    
 
             try:
-                telemetry = [float(i) for i in x]
+                telemetry = [float(i) for i in fields]
 
-                batteryVoltage.data = telemetry[0]
-                batteryCurrent.data = telemetry[1]
+                battery_volts.data = telemetry[0]
+                battery_milliamps.data = telemetry[1]
                 systemCurrent.data = telemetry[2]
                 ADC0.data = telemetry[3]
                 ADC1.data = telemetry[4]
@@ -169,8 +223,8 @@ def getSerialPortData(event=None):
                 rospy.logwarn(f"Failed to extract all 9: {e}")
             
             try:
-                pub_batteryVoltage.publish(batteryVoltage)
-                pub_batteryCurrent.publish(batteryCurrent)
+                pub_batteryVoltage.publish(battery_volts)
+                pub_batteryCurrent.publish(battery_milliamps)
                 pub_systemCurrent.publish(systemCurrent)
                 pub_ADC0.publish(ADC0)
                 pub_ADC1.publish(ADC1)
@@ -187,26 +241,50 @@ def getSerialPortData(event=None):
 
         hat.flushInput()
     
-#parses all network device info for device at screen_pos index
 def get_network_device():
-    global screen_pos
+    """
+    Get the NM Connections which are currently active, ie. applied to a
+    NM Device (interface). Collect the details about each NM Device and
+    return it to the display, so it can be used to connect with a specific
+    network interface.
+    """
+
     strength = ''
+
     try:
-        ac = NetworkManager.NetworkManager.ActiveConnections
-        conn = ac[screen_pos % len(ac)]
-        settings = conn.Connection.GetSettings()
+        active_connections = NetworkManager.NetworkManager.ActiveConnections
+        if not active_connections:
+            rospy.logwarn("No active network Connections")
+            return padResult(println("No active Connections"))
+
+        connection = active_connections[screen_page % len(active_connections)]
+        settings = connection.Connection.GetSettings()
     
-        for s in list(settings.keys()):
-            if 'data' in settings[s]:
-                settings[s + '-data'] = settings[s].pop('data')
+        for setting in settings:
+            if 'data' in settings[setting]:
+                settings[setting + '-data'] = settings[setting].pop('data')
     
-        secrets = conn.Connection.GetSecrets()
+        rospy.logdebug("updated settings")
+
+        try:
+            #
+            # Retrieve the PSK for this NM Connection, so it can
+            # be shown on the UI display.
+            #
+            secrets = connection.Connection.GetSecrets()
+
+        except Exception as e:
+            rospy.logwarn(f"Exception from GetSecrets(): {e}")
+            return padResult(println("GetSecrets error"))
+
         for key in secrets:
             settings[key].update(secrets[key])
             
-        if hasattr(conn,'Devices') and conn.Devices:
-            output = println('Name: '+str(conn.Devices[0].Interface))
-            output += println('IP: '+str(conn.Devices[0].Ip4Config.Addresses[0][0]))
+        rospy.logdebug("got secrets")
+
+        if hasattr(connection, 'Devices') and connection.Devices:
+            output = println('Name: '+str(connection.Devices[0].Interface))
+            output += println('IP: '+str(connection.Devices[0].Ip4Config.Addresses[0][0]))
         
         size = max([max([len(y) for y in list(x.keys()) + ['']]) for x in settings.values()])
         format = "      %%-%ds %%s" % (size + 5)
@@ -218,39 +296,54 @@ def get_network_device():
                         try:
                             if(str(ap.Ssid) == str(value)):
                                 strength = ap.Strength
+
                         except Exception as e:
-                            print(e)
+                            rospy.logwarn(
+                                f"getNetworkDevice NM.AccessPoint exception {e}")
                             pass
+
                 elif name == 'psk':
                     output += println('Pwd: '+str(value))
+
                 elif name == 'type':
                     output += println('Type: '+str(value))
+
         if(str(strength) != ''):
             strengthString = '  strength:'+str(strength)+'%'
         else:
             strengthString = '';
-        output = println(str((screen_pos % len(ac))+1)+'/'+str(len(ac)) + strengthString)+output
-        print("--S--")
-        print(output)
-        print("--E--")
+        output = println(str(
+            (screen_page % len(active_connections))+1)
+            +'/'+str(len(active_connections))
+            + strengthString) + output
         return padResult(output)
+
     except AttributeError:
         return padResult(println('still connecting...')+println('')+println('press button to')+println('refresh'))
-    except:
+
+    except Exception as e:
+        rospy.logwarn(f"getNetworkDevice exception: {e}")
         return padResult(println('Device error'))
 
-#Parse the list of all available network connections
 def get_network_connections():
-    global screen_pos
+    """
+    Parse the list of all defined NM Connections.
+    """
+
     global gconn
+
     strength = ''
-    cn = NetworkManager.Settings.ListConnections()
-    gconn = cn[screen_pos % len(cn)]
+    all_connections = NetworkManager.Settings.ListConnections()
+    if not all_connections:
+        return padResult("No network connections")
+
+    gconn = all_connections[screen_page % len(all_connections)]
     settings = gconn.GetSettings()
     secrets = gconn.GetSecrets()
     for key in secrets:
         settings[key].update(secrets[key])
     output = println('Name: '+str(settings['connection']['id']))
+
     for key, val in sorted(settings.items()):
         for name, value in val.items():
             if name == 'ssid':
@@ -260,8 +353,9 @@ def get_network_connections():
                         if(str(ap.Ssid) == str(value)):
                             strength = ap.Strength
                     except Exception as e:
-                        print(e)
+                        rospy.logwarn(f"NM.AccessPoint exception: {e}")
                         pass
+
             elif name == 'psk':
                 output += println('Pwd: '+str(value))
             elif name == 'type':
@@ -270,10 +364,9 @@ def get_network_connections():
         strengthString = '  strength:'+str(strength)+'%'
     else:
         strengthString = '';
-    output = println(str((screen_pos % len(cn))+1)+'/'+str(len(cn)) + strengthString)+output
-    print("--S--")
-    print(output)
-    print("--E--")
+    output = println(str((screen_page % len(all_connections))+1)+'/'+str(len(all_connections)) + strengthString)+output
+    rospy.logdebug("--S--" + output + "--E--")
+
     return padResult(output)
 
 #pads text to clear the screen
@@ -287,27 +380,14 @@ def padResult(text):
 #Attempts to activate a connection. This will join a wireless network for example
 def join_network():
     global gconn
-    print('nmcli connection up '+str(gconn.GetSettings()['connection']['id']))
+    rospy.logdebug(
+        'nmcli connection up '+str(gconn.GetSettings()['connection']['id']))
     #os.system('nmcli connection up '+str(gconn.GetSettings()['connection']['id']).replace(' ','\ '))
     subprocess.Popen('nmcli connection up '+str(gconn.GetSettings()['connection']['id']).replace(' ','\ '),shell=True);
 
-    
-#==============================================================================================
-
-
-#==============================================================
-# Global non ROS variables
-#shutdownTimer = SHUT_DOWN_TIMER_RELOAD    #Counts down when shutdownActive is true
-#enterShutdownActive = False                    #set true to start the shutdown proceedure
-#enterSleepActive = False                    #set true to start the sleep proceedure
-
-#==============================================================
-# Setup the publishers
-
-#System voltage and current
-pub_batteryVoltage = rospy.Publisher('voltage_battery',Float32,queue_size = 1)
-pub_batteryCurrent = rospy.Publisher('current_battery',Float32,queue_size = 1)
-pub_systemCurrent  = rospy.Publisher('current_system',Float32,queue_size = 1)
+pub_batteryVoltage = rospy.Publisher('voltage_battery', Float32, queue_size = 1)
+pub_batteryCurrent = rospy.Publisher('current_battery', Float32, queue_size = 1)
+pub_systemCurrent  = rospy.Publisher('current_system', Float32, queue_size = 1)
 
 #General Purpose ADC inputs
 pub_ADC0 = rospy.Publisher('voltage_adc_0',Float32,queue_size = 1)
