@@ -1,0 +1,169 @@
+Start with a Raspberry Pi 4 Model B 4 GB and a 16 GB microSD.
+
+Original RoboQuest image is at:
+https://www.dropbox.com/sh/evnzuc834vnjjmj/AABx1pD6jgx494rnO99IorSBa?dl=0
+but not all Raspberry Pi 4Bs can boot it.
+
+To copy the microSD image:
+https://raspberrytips.com/create-image-sd-card/
+
+1. Install ubuntu Focal 20.04 Server 32 bit
+    https://ubuntu.com/download/raspberry-pi/thank-you?version=20.04.3&architecture=server-armhf+raspi
+    https://ubuntu.com/tutorials/how-to-install-ubuntu-on-your-raspberry-pi
+
+    - Flash a microSD
+    - Connect HDMI monitor and USB keyboard
+    - Boot from microSD
+    - Login with ubuntu:ubuntu and change password (questpass)
+    - add group i2c and assign it to /dev/i2c-1
+        sudo addgroup i2c
+        sudo chgrp i2c /dev/i2c-1
+    - add user ubuntu to groups: i2c
+    - allow unattended-upgrade to complete (tens of minutes)
+    - sudo apt dist-upgrade
+    - set hostname and timezone
+        sudo hostnamectl set-hostname pi-focal
+        sudo timedatectl set-timezone America/Los_Angeles
+    - add hosts to /etc/hosts for ROS
+
+2. add OS packages and configure hardware
+    sudo apt install python3-smbus python3-rpi.gpio
+    sudo apt install python3-networkmanager v4l-utils
+    sudo apt install libraspberrypi-bin
+
+    # After installing python3-networkmanager, replace
+    # /usr/lib/python3/dist-packages/NetworkManager.py
+    # with catkin_ws/src/roboquest_core/patches/NetworkManager.py.
+    # See https://github.com/alex-eri/python-networkmanager/pull/1/files
+
+    # While the repository package raspi-config exists, it
+    # is ignored because it doesn't know about
+    # /boot/firmware/config.txt.
+
+    verify /dev/i2c-1 exists
+    add I2C bus 6:
+    echo "
+#
+# To enable the second onboard I2C bus.
+#
+dtoverlay=i2c-rtc,mcp7940x
+dtoverlay=i2c6,pins_0_1" >> /boot/firmware/usercfg.txt
+
+3. Install ROS Noetic base
+    http://wiki.ros.org/noetic/Installation/Ubuntu
+    https://varhowto.com/install-ros-noetic-ubuntu-20-04/
+
+    sudo apt install ros-noetic-audio-common
+
+4. Install Robot Console
+    Dependencies:
+        NodeJS
+        -----------------------------------
+        sudo apt install nodejs npm python3-socketio
+        # sudo apt install libopencv-core4.2 # although opencv4nodejs wants
+                                             # libopencv-core3.4
+
+        catkin workspace
+        -----------------------------------
+        mkdir -p ~/catkin_ws/src
+        cd ~/catkin_ws
+        catkin_make
+
+        Robot Console
+        -----------------------------------
+        https://github.com/MarkSkinner92/RobotConsole
+
+        cd ~/catkin_ws/src
+        git clone https://github.com/clduce/RobotConsole
+        mkdir -p roboquest_ui/src
+        add CMakeLists.txt and package.xml
+        mv RobotConsole roboquest_ui/src
+
+        # remove examples and backups
+        cd roboquest_ui/src/RobotConsole
+        rm -rf examples_nodes server.js~
+        npm i # 40 minutes
+        npm audit fix
+
+        # Update sudo
+        sudo echo "ubuntu ALL=(root) NOPASSWD: /home/ubuntu/catkin_ws/src/roboquest_ui/src/RobotConsole/resetUsbCams.sh" > /etc/sudoers.d/91-robotconsole-camera
+
+
+        The following should have been automatically installed
+        by the execution of "npm i" above.
+
+                ExpressJS
+                -----------------------------------
+                https://www.hostnextra.com/kb/install-expressjs-on-ubuntu-20-04/
+
+                mkdir myapp
+                cd myapp
+                npm init # choose defaults
+                npm install express --save
+
+                rosnodejs
+                -----------------------------------
+                http://wiki.ros.org/rosnodejs
+
+                npm install rosnodejs
+
+                opencv4nodejs
+                -----------------------------------
+                # compile and install
+                npm install --save opencv4nodejs # 39 minutes
+                                                 # hundreds of warnings
+
+            RoboQuest
+            -----------------------------------
+            cd ~/catkin_ws/src
+            git clone https://github.com/clduce/roboquest_core
+
+            # ~/catkin_ws/src/roboquest_core/nodes/roboquest_core/servo_settings.py
+            # ~/catkin_ws/src/roboquest_ui/src/RobotConsole/hardcoded_settings.json
+
+5. connect a camera, USB and RaspPiCamera
+    - Add the following to /boot/firmware/config.txt, in the [all]
+      section before the includes:
+
+gpu_mem=128
+start_x=1
+camera_auto_detect=1
+
+	- edit ~/catkin_ws/src/roboquest_ui/src/RobotConsole/hardcoded_settings.json
+      to set video_enabled to true and add "/dev/video0" to video_paths
+
+6. disable the serial console
+    The RoboQuest PiHAT uses that UART
+    https://askubuntu.com/questions/1254376/enable-uart-communication-on-pi4-ubuntu-20-04
+
+    remove console from /boot/cmdline.txt
+
+7. integrate RobotConsole with OS
+    - NetworkManager
+        - grant access
+        
+        Create /etc/polkit-1/localauthority/50-local.d/10-network-manager.pkla,
+        to allow GetSecrets().
+        Also see /usr/share/polkit-1/actions/ and "man pklocalauthority".
+
+[Allow Python NetworkManager access]
+Identity=unix-user:ubuntu
+Action=org.freedesktop.NetworkManager.*
+ResultAny=yes
+ResultInactive=yes
+ResultActive=yes
+
+        - define Access Point nmcli connection
+        # Update sudo
+        echo "ubuntu ALL=(root) NOPASSWD: /home/ubuntu/catkin_ws/src/roboquest_core/scripts/access_point.bash" > /etc/sudoers.d/92-access-point
+
+    - power down Python script
+    - start application at boot
+    - update RobotConsole Config Settings
+
+
+
+8. Run it
+    - export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/home/ubuntu/catkin_ws/src/roboquest_ui/src/RobotConsole/node_modules/opencv-build/opencv/build/lib
+    - source ~/catkin_ws/devel/setup.bash
+    - roslaunch roboquest_ui server.launch

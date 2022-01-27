@@ -1,0 +1,4 @@
+gpu_mem=128
+start_x=1
+camera_auto_detect=1
+

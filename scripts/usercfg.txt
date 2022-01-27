@@ -1,0 +1,5 @@
+#
+# To enable the second onboard I2C bus.
+#
+dtoverlay=i2c-rtc,mcp7940x
+dtoverlay=i2c6,pins_0_1" >> /boot/firmware/usercfg.txt

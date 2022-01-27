@@ -1,0 +1,1 @@
+ubuntu ALL=(root) NOPASSWD: /home/ubuntu/catkin_ws/src/roboquest_core/scripts/access_point.bash
