@@ -1,0 +1,9 @@
+[Unit]
+Description=Start the RoboQuest shutdown monitor
+After=network.target
+
+[Service]
+ExecStart=/home/ubuntu/catkin_ws/src/roboquest_core/scripts/powerDownWatch.py
+
+[Install]
+WantedBy=default.target

@@ -139,26 +139,25 @@ camera_auto_detect=1
     remove console from /boot/cmdline.txt
 
 7. integrate RobotConsole with OS
-    - NetworkManager
-        - grant access
+    - NetworkManager access for GetSecrets():
+        cp scripts/10-network-manager.pkla /etc/polkit-1/localauthority/50-local.d/
+
+    - define Access Point nmcli connection
+        cp scripts/roboquest-network.service /etc/systemd/system/
+
+    - start shutdown monitor
+        cp scripts/roboquest-shutdown.service /etc/systemd/system/
         
-        Create /etc/polkit-1/localauthority/50-local.d/10-network-manager.pkla,
-        to allow GetSecrets().
-        Also see /usr/share/polkit-1/actions/ and "man pklocalauthority".
-
-[Allow Python NetworkManager access]
-Identity=unix-user:ubuntu
-Action=org.freedesktop.NetworkManager.*
-ResultAny=yes
-ResultInactive=yes
-ResultActive=yes
-
-        - define Access Point nmcli connection
-        # Update sudo
-        echo "ubuntu ALL=(root) NOPASSWD: /home/ubuntu/catkin_ws/src/roboquest_core/scripts/access_point.bash" > /etc/sudoers.d/92-access-point
-
-    - power down Python script
     - start application at boot
+        cp scripts/roboquest.service /etc/systemd/system/
+
+        chmod 0664 /etc/systemd/system/roboquest*service
+	systemctl enable roboquest-network.service
+	systemctl enable roboquest-shutdown.service
+	systemctl enable roboquest.service
+        systemctl daemon-reload
+
+
     - update RobotConsole Config Settings
 
 
