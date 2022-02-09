@@ -142,6 +142,15 @@ camera_auto_detect=1
     - NetworkManager access for GetSecrets():
         cp scripts/10-network-manager.pkla /etc/polkit-1/localauthority/50-local.d/
 
+    - allow NetworkManager, instead of cloud-init, to manage eth0
+	1. echo "network: {config: disabled}" > /etc/cloud/cloud.cfg.d/99-disable-network-config.cfg
+        2. nmcli -c no conn add type ethernet ifname eth0 con-name Ethernet autoconnect yes ipv4.method auto
+        3. sudo dpkg-reconfigure cloud-init
+        4. edit /etc/netplan/50-cloud-init.yaml
+           # set renderer: NetworkManager and remove eth0
+           sudo netplan --debug generate
+           sudo netplan apply
+
     - define Access Point nmcli connection
         cp scripts/roboquest-network.service /etc/systemd/system/
 

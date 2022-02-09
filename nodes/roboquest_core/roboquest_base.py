@@ -243,6 +243,8 @@ def getSerialPortData(event=None):
     
 def get_network_device():
     """
+    Populates the Devices screen of the UI.
+
     Get the NM Connections which are currently active, ie. applied to a
     NM Device (interface). Collect the details about each NM Device and
     return it to the display, so it can be used to connect with a specific
@@ -264,8 +266,6 @@ def get_network_device():
             if 'data' in settings[setting]:
                 settings[setting + '-data'] = settings[setting].pop('data')
     
-        rospy.logdebug("updated settings")
-
         try:
             #
             # Retrieve the PSK for this NM Connection, so it can
@@ -280,8 +280,6 @@ def get_network_device():
         for key in secrets:
             settings[key].update(secrets[key])
             
-        rospy.logdebug("got secrets")
-
         if hasattr(connection, 'Devices') and connection.Devices:
             output = println('Name: '+str(connection.Devices[0].Interface))
             output += println('IP: '+str(connection.Devices[0].Ip4Config.Addresses[0][0]))
@@ -327,6 +325,8 @@ def get_network_device():
 
 def get_network_connections():
     """
+    Populates the Connections screen of the UI.
+
     Parse the list of all defined NM Connections.
     """
 
