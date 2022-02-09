@@ -1,0 +1,67 @@
+RaspBerry Pi config.txt
+https://www.raspberrypi.com/documentation/computers/config_txt.html
+
+https://help.ubuntu.com/lts/installation-guide/armhf/index.html
+https://help.ubuntu.com/community/CommunityHelpWiki
+https://www.raspberrypi.com/documentation/accessories/camera.html
+
+https://webcamtests.com/
+finds the Logitech camera on my desktop, identifies it as a UVC Camera.
+See ~/Pictures/LogitechNewCamera.png
+
+Adding the following to /boot/firmware/config.txt, in the [all]
+section before the includes:
+
+gpu_mem=128
+start_x=1
+camera_auto_detect=1
+
+root@pi-focal:/boot/firmware# vcgencmd get_camera
+supported=1 detected=1
+
+root@pi-focal:~# dtoverlay -l
+No overlays loaded
+
+root@pi-focal:/boot/firmware# raspistill -o /tmp/still.jpg
+captures an image
+
+---------------------------------------------------------------------
+Install Raspberry PiOS Lite
+
+https://downloads.raspberrypi.org/raspios_lite_armhf/images/raspios_lite_armhf-2021-11-08/2021-10-30-raspios-bullseye-armhf-lite.zip
+
+pi@raspberrypi:~ $ cat /etc/debian_version 
+11.1
+pi@raspberrypi:~ $ lsb_release -a
+No LSB modules are available.
+Distributor ID: Raspbian
+Description:    Raspbian GNU/Linux 11 (bullseye)
+Release:        11
+Codename:       bullseye
+pi@raspberrypi:~ $ 
+
+the only change made to config.txt by raspi-config is
+camera_auto_detect=1
+v4l2-ctl --list-devices shows:
+/dev/video0
+/dev/video1
+/dev/video2
+but vcgencmd get_camera shows
+supported=0 detected =0
+
+After manually adding "start_x=1" and connecting the RaspPiCamera,
+vcgencmd shows:
+supported=1 detected =0
+and vcgencmd lists video[0-2].
+
+from package libcamera-apps-lite,
+https://github.com/raspberrypi/libcamera-apps/
+Depends: libboost-program-options1.74.0 (>= 1.74.0),
+         libc6 (>= 2.29), libcamera0 (>= 0~git20211020+f4070274),
+         libdrm2 (>= 2.4.99), libexif12 (>= 0.6.21-1~),
+         libgcc-s1 (>= 3.5), libjpeg62-turbo (>= 1.3.1),
+         libpng16-16 (>= 1.6.2-1), libstdc++6 (>= 7),
+         libtiff5 (>= 4.0.3)
+
+libcamera-jpeg -v -o /tmp/camera.jpg
+captured an image from the camera

@@ -1,4 +1,4 @@
-#! /usr/bin/env python
+#!/usr/bin/env python3
 #
 # motor_controller.py
 # Cory Duce cory.duce@gmail.com
@@ -18,7 +18,7 @@ from textwrap import wrap
 
 PIN_I2C6_POWER_ENABLE = 17
 
-bus = smbus.SMBus(3)		#this is I2C6 on the pi4 for some reason
+bus = smbus.SMBus(6)		#this is I2C6 on the pi4 for some reason
 DEVICE_ADDRESS = 0x53
 speed = 100.0
 enabledState = False

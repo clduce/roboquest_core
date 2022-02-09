@@ -1,0 +1,11 @@
+[Unit]
+Description=Setup the RoboQuest WiFi Access Point
+Wants=network.target
+
+[Service]
+ExecStart=/home/ubuntu/catkin_ws/src/roboquest_core/scripts/access_point.bash
+Restart=no
+Type=oneshot
+
+[Install]
+WantedBy=default.target

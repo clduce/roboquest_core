@@ -1,0 +1,13 @@
+[Unit]
+Description=Start the RoboQuest application
+After=network.target
+
+[Service]
+ExecStart=/home/ubuntu/catkin_ws/src/roboquest_core/scripts/start.bash
+User=ubuntu
+Restart=always
+RestartSec=15
+WorkingDirectory=/home/ubuntu
+
+[Install]
+WantedBy=default.target
