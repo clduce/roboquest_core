@@ -10,9 +10,12 @@ HOSTNAME_BASE="rq"
 
 #
 # In order to create a unique hostname, append
-# the last 5 digits of the machine ID.
+# the last 4 digits of the eth0 MAC address.
 #
-UNIQUE_HOST=$(grep -o '.....$' /etc/machine-id)
+UNIQUE_HOST=$(ip address show dev eth0 scope link | \
+	       awk '/ether/{print $2}' | \
+	       sed 's/://g' | \
+	       grep -o '....$')
 HOSTNAME="$HOSTNAME_BASE-$UNIQUE_HOST"
 
 hostnamectl set-hostname "$HOSTNAME"
