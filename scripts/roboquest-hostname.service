@@ -1,0 +1,11 @@
+[Unit]
+Description=Setup the RoboQuest hostname
+Wants=basic.target
+
+[Service]
+ExecStart=/home/ubuntu/catkin_ws/src/roboquest_core/scripts/hostname.bash
+Restart=no
+Type=oneshot
+
+[Install]
+WantedBy=network-pre.target

@@ -151,6 +151,9 @@ camera_auto_detect=1
            sudo netplan --debug generate
            sudo netplan apply
 
+    - set unique hostname
+        cp scripts/roboquest-hostname.service /etc/systemd/system/
+
     - define Access Point nmcli connection
         cp scripts/roboquest-network.service /etc/systemd/system/
 
@@ -161,14 +164,13 @@ camera_auto_detect=1
         cp scripts/roboquest.service /etc/systemd/system/
 
         chmod 0664 /etc/systemd/system/roboquest*service
+	systemctl enable roboquest-hostname.service
 	systemctl enable roboquest-network.service
 	systemctl enable roboquest-shutdown.service
 	systemctl enable roboquest.service
         systemctl daemon-reload
 
-
     - update RobotConsole Config Settings
-
 
 
 8. Run it
