@@ -1,12 +1,12 @@
 <launch>
   <env name="ROSCONSOLE_CONFIG_FILE"
-       value="$(find roboquest_core)/launch/rosconsole_config"/>
+       value="$(find roboquest_ui)/src/RobotConsole/rosconsole_config"/>
 
   <env name="ROSCONSOLE_FORMAT"
        value="${time} ${severity} ${node}-${function}: ${message}"/>
 
   <env name="ROS_PYTHON_LOG_CONFIG_FILE"
-       value="$(find roboquest_core)/launch/rospython_config"/>
+       value="$(find roboquest_ui)/src/RobotConsole/rospython_config"/>
 
   <node
     name="servo_controller"
