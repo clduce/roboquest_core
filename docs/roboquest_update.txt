@@ -25,6 +25,9 @@ https://raspberrytips.com/create-image-sd-card/
         sudo hostnamectl set-hostname pi-focal
         sudo timedatectl set-timezone America/Los_Angeles
     - add hosts to /etc/hosts for ROS
+    - update /etc/logrotate.d/rsyslog
+	- replace all timeframes from [weekly, monthly] to daily
+	- set all rotate to 2
 
 2. add OS packages and configure hardware
     sudo apt install python3-smbus python3-rpi.gpio
