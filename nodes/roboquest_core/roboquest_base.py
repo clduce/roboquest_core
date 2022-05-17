@@ -7,7 +7,7 @@
 # v1.0 -Initial release
 #
 import rospy
-import RPi.GPIO as GPIO
+import Jetson.GPIO as GPIO
 from std_msgs.msg import Float32, Bool, Int32
 import serial
 import os
@@ -28,7 +28,6 @@ PIN_DRIVER2 = 25
 PIN_CHARGER_DETECT = 7
 PIN_CHARGER_ENABLE = 21
 HAT_MCU_CONTROL_PIN = 22        
-SHUT_DOWN_TIMER_RELOAD = 10
 ENABLE = GPIO.HIGH
 DISABLE = GPIO.LOW
 c = NetworkManager.const

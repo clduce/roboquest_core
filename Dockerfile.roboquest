@@ -1,0 +1,26 @@
+#
+# roboquest image
+#
+FROM robot_console
+
+LABEL version="3"
+LABEL description="RoboQuest"
+LABEL maintainer="Bill Mania <bill@manialabs.us>"
+ARG DEBIAN_FRONTEND=noninteractive
+
+SHELL ["/bin/bash", "--login", "-c"]
+
+WORKDIR /usr/src/catkin_ws/src
+RUN git clone https://github.com/clduce/roboquest_core \
+     && pip3 install Jetson.GPIO
+
+WORKDIR /usr/src/catkin_ws
+RUN catkin_make
+
+#
+# Update
+# ~/catkin_ws/src/roboquest_core/nodes/roboquest_core/servo_settings.py
+# ~/catkin_ws/src/roboquest_ui/src/RobotConsole/hardcoded_settings.json
+#
+
+CMD [ "sleep", "infinity" ]

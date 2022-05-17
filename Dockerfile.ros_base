@@ -1,0 +1,52 @@
+#
+# ros_base image
+#
+FROM ros:noetic-ros-core-focal
+
+LABEL version="2"
+LABEL description="ROS Noetic and packages required for RoboQuest"
+LABEL maintainer="Bill Mania <bill@manialabs.us>"
+ARG DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update \
+    && apt-get install -y apt-utils
+
+RUN apt-get install -y \
+     python3-pip python3-serial minicom curl git vim usbutils \
+    && rm -rf /var/lib/apt/lists/*
+
+#
+# Put the system clock in the local timezone, merely
+# for convenience.
+#
+RUN echo "America/Los_Angeles" > /etc/timezone
+
+RUN echo "source /opt/ros/noetic/setup.bash" >> /etc/profile
+
+RUN apt-get update \
+    && apt-get install -y \
+        python3-smbus \
+        python3-rpi.gpio \
+        python3-networkmanager \
+        v4l-utils \
+        python3-gpiozero \
+        libraspberrypi-bin
+
+RUN mv /usr/lib/python3/dist-packages/NetworkManager.py \
+       /usr/lib/python3/dist-packages/NetworkManager.py.old
+COPY patches/NetworkManager.py /usr/lib/python3/dist-packages/
+
+RUN apt-get install -y \
+      ros-noetic-audio-common \
+      nodejs \
+      npm \
+      python3-socketio
+
+SHELL ["/bin/bash", "--login", "-c"]
+
+WORKDIR /usr/src/catkin_ws
+
+RUN mkdir src \
+    && catkin_make
+
+CMD [ "sleep", "infinity" ]

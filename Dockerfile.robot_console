@@ -1,0 +1,24 @@
+#
+# robot_console image
+#
+FROM ros_base
+
+LABEL version="3"
+LABEL description="Robot Console"
+LABEL maintainer="Bill Mania <bill@manialabs.us>"
+ARG DEBIAN_FRONTEND=noninteractive
+
+SHELL ["/bin/bash", "--login", "-c"]
+
+WORKDIR /usr/src/catkin_ws
+RUN catkin_make
+
+WORKDIR /usr/src/catkin_ws/src
+RUN git clone -b bill_nano_port --single-branch https://github.com/clduce/RobotConsole \
+    && mv RobotConsole roboquest_ui
+
+WORKDIR /usr/src/catkin_ws/src/roboquest_ui
+RUN /usr/bin/npm i \
+    && /usr/bin/npm audit fix
+     
+CMD [ "sleep", "infinity" ]

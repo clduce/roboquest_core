@@ -5,7 +5,7 @@
 
 
 import rospy
-import RPi.GPIO as GPIO
+import Jetson.GPIO as GPIO
 import math
 from geometry_msgs.msg import Vector3
 from std_msgs.msg import Bool, Float64
@@ -37,7 +37,15 @@ ALLCALL            = 0x01
 INVRT              = 0x10
 OUTDRV             = 0x04
 
-bus = smbus.SMBus(1)		#this is I2C1 on the pi4
+#
+# Raspberry Pi 4B
+#SERVO_I2C_BUS = 1
+# Jetson Nano dev kit J41
+SERVO_I2C_BUS = 1
+
+PIN_SERVO_ENABLE = 23
+
+bus = smbus.SMBus(SERVO_I2C_BUS)
 DEVICE_ADDRESS = 0x40 		#Address of the PCA9685 IC
 		
 servoPowerEnabled = False	#start with the servos powered off
@@ -70,7 +78,7 @@ def pca9685_init():
 
 def powerEnable():
 	global servoPowerEnabled
-	GPIO.output(23, GPIO.HIGH)
+	GPIO.output(PIN_SERVO_ENABLE, GPIO.HIGH)
 	time.sleep(0.5)		#supply takes time to start up
 	servoPowerEnabled = True
 	pca9685_init();

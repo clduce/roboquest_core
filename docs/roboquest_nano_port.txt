@@ -8,24 +8,21 @@ creates a Docker image with ubuntu Focal and ROS Noetic.
 
 0. Use the Nvidia SDK Manager to provision the Jetson Nano
 
-1. Install ubuntu Focal 20.04 Server 32 bit
-    https://ubuntu.com/download/raspberry-pi/thank-you?version=20.04.3&architecture=server-armhf+raspi
-    https://ubuntu.com/tutorials/how-to-install-ubuntu-on-your-raspberry-pi
+    Configure the docker daemon to allow connections from other hosts:
+    sudo systemctl edit docker.service
+[Service]
+ExecStart=
+ExecStart=/usr/bin/dockerd -H fd:// -H tcp://0.0.0.0:2376
 
-    - Flash a microSD
-    - Connect HDMI monitor and USB keyboard
-    - Boot from microSD
-    - Login with ubuntu:ubuntu and change password (questpass)
+	sudo systemctl daemon-reload
+    sudo systemctl restart docker.service
+
+1. Start with the ros:noetic-ros-core-focal Docker image
+
     - add group i2c and assign it to /dev/i2c-1
         sudo addgroup i2c
         sudo chgrp i2c /dev/i2c-1
     - add user ubuntu to groups: i2c
-    - allow unattended-upgrade to complete (tens of minutes)
-    - sudo apt dist-upgrade
-    - set hostname and timezone
-        sudo hostnamectl set-hostname pi-focal
-        sudo timedatectl set-timezone America/Los_Angeles
-    - add hosts to /etc/hosts for ROS
 
 2. add OS packages and configure hardware
     sudo apt install python3-smbus python3-rpi.gpio
@@ -37,144 +34,90 @@ creates a Docker image with ubuntu Focal and ROS Noetic.
     # with catkin_ws/src/roboquest_core/patches/NetworkManager.py.
     # See https://github.com/alex-eri/python-networkmanager/pull/1/files
 
-    # While the repository package raspi-config exists, it
-    # is ignored because it doesn't know about
-    # /boot/firmware/config.txt.
-
-    verify /dev/i2c-1 exists
-    add I2C bus 6:
-    echo "
-#
-# To enable the second onboard I2C bus.
-#
-dtoverlay=i2c-rtc,mcp7940x
-dtoverlay=i2c6,pins_0_1" >> /boot/firmware/usercfg.txt
-
-3. Install ROS Noetic base
-    http://wiki.ros.org/noetic/Installation/Ubuntu
-    https://varhowto.com/install-ros-noetic-ubuntu-20-04/
+3. Install extra ROS packages and RobotConsole dependencies
 
     sudo apt install ros-noetic-audio-common
+    sudo apt install nodejs npm python3-socketio
 
-4. Install Robot Console
-    Dependencies:
-        NodeJS
-        -----------------------------------
-        sudo apt install nodejs npm python3-socketio
-        # sudo apt install libopencv-core4.2 # although opencv4nodejs wants
-                                             # libopencv-core3.4
+    mkdir -p ~/catkin_ws/src
+    cd ~/catkin_ws
+    catkin_make
 
-        catkin workspace
-        -----------------------------------
-        mkdir -p ~/catkin_ws/src
-        cd ~/catkin_ws
-        catkin_make
+4. label this Docker image as ros_base
 
-        Robot Console
-        -----------------------------------
-        https://github.com/MarkSkinner92/RobotConsole
+    docker build -t ros_base -f Dockerfile.ros_base .
 
-        cd ~/catkin_ws/src
-        git clone https://github.com/clduce/RobotConsole
-        mkdir -p roboquest_ui/src
-        add CMakeLists.txt and package.xml
-        mv RobotConsole roboquest_ui/src
+5. Install Robot Console
 
-        # remove examples and backups
-        cd roboquest_ui/src/RobotConsole
-        rm -rf examples_nodes server.js~
-        npm i # 40 minutes
-        npm audit fix
+    cd ~/catkin_ws/src
+    git clone https://github.com/clduce/RobotConsole
+    mkdir -p roboquest_ui/src
+    add CMakeLists.txt and package.xml
+    mv RobotConsole roboquest_ui/src
 
-        # Update sudo
-        sudo echo "ubuntu ALL=(root) NOPASSWD: /home/ubuntu/catkin_ws/src/roboquest_ui/src/RobotConsole/resetUsbCams.sh" > /etc/sudoers.d/91-robotconsole-camera
+    npm i # 40 minutes
+    npm audit fix
 
+6. label this Docker image as robot_console
 
-        The following should have been automatically installed
-        by the execution of "npm i" above.
+    docker build -t robot_console -f Dockerfile.robot_console .
 
-                ExpressJS
-                -----------------------------------
-                https://www.hostnextra.com/kb/install-expressjs-on-ubuntu-20-04/
+7. Install roboquest_core
 
-                mkdir myapp
-                cd myapp
-                npm init # choose defaults
-                npm install express --save
+    RoboQuest
+    -----------------------------------
+    cd ~/catkin_ws/src
+    git clone https://github.com/clduce/roboquest_core
 
-                rosnodejs
-                -----------------------------------
-                http://wiki.ros.org/rosnodejs
+    # ~/catkin_ws/src/roboquest_core/nodes/roboquest_core/servo_settings.py
+    # ~/catkin_ws/src/roboquest_ui/src/RobotConsole/hardcoded_settings.json
 
-                npm install rosnodejs
+8. label this Docker image as roboquest
 
-                opencv4nodejs
-                -----------------------------------
-                # compile and install
-                npm install --save opencv4nodejs # 39 minutes
-                                                 # hundreds of warnings
+    docker build -t roboquest -f Dockerfile.roboquest .
 
-            RoboQuest
-            -----------------------------------
-            cd ~/catkin_ws/src
-            git clone https://github.com/clduce/roboquest_core
+9. disable the serial console in the base OS
 
-            # ~/catkin_ws/src/roboquest_core/nodes/roboquest_core/servo_settings.py
-            # ~/catkin_ws/src/roboquest_ui/src/RobotConsole/hardcoded_settings.json
-
-5. connect a camera, USB and RaspPiCamera
-    - Add the following to /boot/firmware/config.txt, in the [all]
-      section before the includes:
-
-gpu_mem=128
-start_x=1
-camera_auto_detect=1
-
-	- edit ~/catkin_ws/src/roboquest_ui/src/RobotConsole/hardcoded_settings.json
-      to set video_enabled to true and add "/dev/video0" to video_paths
-
-6. disable the serial console
     The RoboQuest PiHAT uses that UART
-    https://askubuntu.com/questions/1254376/enable-uart-communication-on-pi4-ubuntu-20-04
 
-    remove console from /boot/cmdline.txt
+    Didn't figure out how to permanently disable the serial console.
+    Instead, stop it via systemctl before starting the application.
 
-7. integrate RobotConsole with OS
-    - NetworkManager access for GetSecrets():
-        cp scripts/10-network-manager.pkla /etc/polkit-1/localauthority/50-local.d/
+    edit /boot/extlinux/extlinux.conf and remove the ttyS0
+    console entry.
 
-    - allow NetworkManager, instead of cloud-init, to manage eth0
-	1. echo "network: {config: disabled}" > /etc/cloud/cloud.cfg.d/99-disable-network-config.cfg
-        2. nmcli -c no conn add type ethernet ifname eth0 con-name Ethernet autoconnect yes ipv4.method auto
-        3. sudo dpkg-reconfigure cloud-init
-        4. edit /etc/netplan/50-cloud-init.yaml
-           # set renderer: NetworkManager and remove eth0
-           sudo netplan --debug generate
-           sudo netplan apply
+    systemctl stop nvgetty
+    systemctl disable nvgetty
+    systemctl stop serial-getty
+    systemctl disable serial-getty
 
-    - set unique hostname
-        cp scripts/roboquest-hostname.service /etc/systemd/system/
+10. setup the base OS
 
-    - define Access Point nmcli connection
-        cp scripts/roboquest-network.service /etc/systemd/system/
+    On the Jetson Nano base OS:
 
-    - start shutdown monitor
-        cp scripts/roboquest-shutdown.service /etc/systemd/system/
-        
-    - start application at boot
-        cp scripts/roboquest.service /etc/systemd/system/
-
-        chmod 0664 /etc/systemd/system/roboquest*service
-	systemctl enable roboquest-hostname.service
-	systemctl enable roboquest-network.service
-	systemctl enable roboquest-shutdown.service
-	systemctl enable roboquest.service
-        systemctl daemon-reload
-
-    - update RobotConsole Config Settings
+    1. mkdir /home/ubuntu/catkin_ws/src
+    2. cd /home/ubuntu/catkin_ws/src
+    3. git clone https://github.com/clduce/roboquest_core
+    4. cd roboquest_core
+    5. ./scripts/setup_base_OS.bash
 
 
-8. Run it
-    - export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/home/ubuntu/catkin_ws/src/roboquest_ui/src/RobotConsole/node_modules/opencv-build/opencv/build/lib
-    - source ~/catkin_ws/devel/setup.bash
+11. Run it
+
+    - docker run \
+        -it \
+        --name roboquest \
+        --privileged \
+        --rm \
+        --net=host \
+        --device /dev/video0:/dev/video0 \
+        --device /dev/gpiochip0:/dev/gpiochip0 \
+        --device /dev/gpiochip1:/dev/gpiochip1 \
+        --device /dev/ttyS0:/dev/ttyS0 \
+        roboquest \
+        /bin/bash --login
+
+    - systemctl stop serial-getty@ttyS0.service
+    - export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/src/catkin_ws/src/roboquest_ui/node_modules/opencv-build/opencv/build/lib
+    - source /usr/src/catkin_ws/devel/setup.bash
     - roslaunch roboquest_ui server.launch

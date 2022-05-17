@@ -12,13 +12,19 @@ import smbus
 import math
 from geometry_msgs.msg import Vector3
 from std_msgs.msg import Bool, Float64
-import RPi.GPIO as GPIO
+import Jetson.GPIO as GPIO
 import time
 from textwrap import wrap
 
-PIN_I2C6_POWER_ENABLE = 17
+PIN_MOTOR_ENABLE = 17
 
-bus = smbus.SMBus(6)		#this is I2C6 on the pi4 for some reason
+#
+# Raspberry Pi 4B
+#MOTOR_I2C_BUS = 6
+# Jetson Nano dev kit J41
+MOTOR_I2C_BUS = 0
+
+bus = smbus.SMBus(MOTOR_I2C_BUS)
 DEVICE_ADDRESS = 0x53
 speed = 100.0
 enabledState = False
@@ -34,12 +40,12 @@ def callback_speed(msg):
 def callback_enable(msg):
 	global enabledState
 	if(msg.data == True):
-		GPIO.output(PIN_I2C6_POWER_ENABLE, GPIO.HIGH)
+		GPIO.output(PIN_MOTOR_ENABLE, GPIO.HIGH)
 		time.sleep(0.2)
 		enabledState = True
 
 	if(msg.data ==False):
-		GPIO.output(PIN_I2C6_POWER_ENABLE, GPIO.LOW)
+		GPIO.output(PIN_MOTOR_ENABLE, GPIO.LOW)
 		enabledState = False
 
 	pub_motorPwrState.publish(enabledState)
@@ -116,7 +122,7 @@ def callback_drivejs(data):
 
 		if(loops == 0):
 			print("Unable to communicate with Motors. Turning off Motor Power")
-			GPIO.output(PIN_I2C6_POWER_ENABLE, GPIO.LOW)	#disable the motor driver
+			GPIO.output(PIN_MOTOR_ENABLE, GPIO.LOW)	#disable the motor driver
 			enabledState = False
 			pub_motorPwrState.publish(False)
 
@@ -144,9 +150,9 @@ rospy.Subscriber("motor_controller_max_speed",Float64, callback_speed)
 #==============================================================
 #init all the GPIO
 GPIO.setmode(GPIO.BCM)
-GPIO.setup(PIN_I2C6_POWER_ENABLE, GPIO.OUT)
+GPIO.setup(PIN_MOTOR_ENABLE, GPIO.OUT)
 
-GPIO.output(PIN_I2C6_POWER_ENABLE, GPIO.LOW)
+GPIO.output(PIN_MOTOR_ENABLE, GPIO.LOW)
 pub_motorPwrState.publish(False)
 
 #==============================================================
