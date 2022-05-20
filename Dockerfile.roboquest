@@ -3,7 +3,7 @@
 #
 FROM robot_console
 
-LABEL version="3"
+LABEL version="5"
 LABEL description="RoboQuest"
 LABEL maintainer="Bill Mania <bill@manialabs.us>"
 ARG DEBIAN_FRONTEND=noninteractive
@@ -11,7 +11,9 @@ ARG DEBIAN_FRONTEND=noninteractive
 SHELL ["/bin/bash", "--login", "-c"]
 
 WORKDIR /usr/src/catkin_ws/src
-RUN git clone https://github.com/clduce/roboquest_core \
+RUN git clone \
+       -b bill_nano_port \
+       --single-branch https://github.com/clduce/roboquest_core \
      && pip3 install Jetson.GPIO
 
 WORKDIR /usr/src/catkin_ws

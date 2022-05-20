@@ -8,9 +8,8 @@
 #
 import rospy
 import Jetson.GPIO as GPIO
-from std_msgs.msg import Float32, Bool, Int32
+from std_msgs.msg import Float32, Bool
 import serial
-import os
 import subprocess
 import NetworkManager
 import time
@@ -19,15 +18,23 @@ rospy.init_node('roboquest_base')
 
 hat_port = rospy.get_param('~hat_port')
 hat_data_rate = rospy.get_param('~hat_data_rate')
-rospy.logdebug(f"roboquest_base parameters: hat_port:{hat_port}, hat_data_rate:{hat_data_rate}")
-hat = serial.Serial(hat_port, hat_data_rate, timeout=0.1)
+rospy.logdebug(f"roboquest_base parameters: hat_port:{hat_port}"
+               f" , hat_data_rate:{hat_data_rate}")
+hat = serial.Serial(port=hat_port,
+                    baudrate=hat_data_rate,
+                    bytesize=7,
+                    parity='N',
+                    stopbits=1,
+                    xonxoff=False,
+                    rtscts=False,
+                    timeout=0.1)
 rospy.logdebug("Serial port opened")
 
 PIN_DRIVER1 = 24
 PIN_DRIVER2 = 25
 PIN_CHARGER_DETECT = 7
 PIN_CHARGER_ENABLE = 21
-HAT_MCU_CONTROL_PIN = 22        
+HAT_MCU_CONTROL_PIN = 22
 ENABLE = GPIO.HIGH
 DISABLE = GPIO.LOW
 c = NetworkManager.const
@@ -49,40 +56,51 @@ UP = '1'
 ENTER = '2'
 NO_BUTTON = '0'
 
-#Globals
 screen_page = 0
 oldx1 = 0
 
-#==============================================================
-# ROS Subscriber Callback functions
 
-#Enable or disable the charger
 def cb_chargerEnable(msg):
-    if(msg.data == True):
-        GPIO.output(PIN_CHARGER_ENABLE, GPIO.LOW)    #Turn the charger on
-    if(msg.data == False):
-        GPIO.output(PIN_CHARGER_ENABLE, GPIO.HIGH)    #Turn the charger off
+    if msg.data is True:
+        #
+        # Set the charger ON.
+        #
+        GPIO.output(PIN_CHARGER_ENABLE, GPIO.LOW)
+    else:
+        #
+        # Set the charger OFF.
+        #
+        GPIO.output(PIN_CHARGER_ENABLE, GPIO.HIGH)
 
     pub_chargerEnabled.publish(msg.data)
 
 
-
-#Enable or disable the FET current driver #1
 def cb_driver1(msg):
-    if(msg.data == True):
-        GPIO.output(PIN_DRIVER1, GPIO.HIGH)    
-    if(msg.data == False):
+    """
+    Enable or disable the FET current driver #1
+    """
+
+    if msg.data is True:
+        GPIO.output(PIN_DRIVER1, GPIO.HIGH)
+    else:
         GPIO.output(PIN_DRIVER1, GPIO.LOW)
 
-#Enable or disable the FET current driver #2
+
 def cb_driver2(msg):
-    if(msg.data == True):
+    """
+    Enable or disable the FET current driver #2
+    """
+    if msg.data is True:
         GPIO.output(PIN_DRIVER2, GPIO.HIGH)
-    if(msg.data == False):
+    else:
         GPIO.output(PIN_DRIVER2, GPIO.LOW)
 
-#Puts the robot to sleep for given number of minutes        
+
 def cb_sleepTime(msg):
+    """
+    Puts the robot to sleep for given number of minutes
+    """
+
     hat.write(
         bytearray(
             "$$sleepTime={0}".format(msg.data),
@@ -91,10 +109,12 @@ def cb_sleepTime(msg):
         bytearray(
             "$$sleep",
             'ascii'))
-        
-#Event that runs 10/sec checking for new serial port messages from the Pi
+
+
 def getSerialPortData(event=None):
     """
+    Event that runs 10/sec checking for new serial port messages from the Pi
+
     $$SCREEN <screen ID> <button ID>\r
 
     <screen ID>
@@ -114,25 +134,30 @@ def getSerialPortData(event=None):
     global screen_page
     global oldx1
 
-    #==============================================================
-    #variables for ROS data to be published
-    
     battery_volts = Float32()
-    battery_milliamps = Float32()                #battery current in mA. Positive when current flowing into battery ie charging, negative when battery is discharging
-    systemCurrent = Float32()                #system current in mA. This is current that is powering the robot. Positive when system is running. Should not be negative
+    #
+    # battery current in mA. Positive when current flowing into battery
+    # ie charging, negative when battery is discharging
+    #
+    battery_milliamps = Float32()
+    #
+    # system current in mA. This is current that is powering the robot.
+    # Positive when system is running. Should not be negative
+    #
+    systemCurrent = Float32()
     
-    ADC0 = Float32()                        #ADC inputs. 0-3.3 volts
+    ADC0 = Float32()
     ADC1 = Float32()
     ADC2 = Float32()
     ADC3 = Float32()
     ADC4 = Float32()
-    
-    chargerPwrState = Bool()                #state of the external charger power
-    
-    #==============================================================
+
+    chargerPwrState = Bool()
+
+    #
     # The micro controller is sending a bunch of telemetry over the serial port
     # The data is in string format "$$$ value1 value2 ... valueN \n"
-    #try:
+    #
     msg = hat.readline().decode('ascii')
     fields = msg.split()
     if fields:
@@ -147,7 +172,7 @@ def getSerialPortData(event=None):
             if screen_id != oldx1:
                 oldx1 = screen_id
                 screen_page = 0
-                
+
             if(screen_id == DEVICES):
                 if button_id == NO_BUTTON:
                     hat.write(
@@ -167,7 +192,7 @@ def getSerialPortData(event=None):
                             "$$screen=2="+get_network_device()+"\r",
                             'ascii'))
 
-            if screen_id == CONNECTIONS:                
+            if screen_id == CONNECTIONS:
                 if button_id == NO_BUTTON:
                     hat.write(
                         bytearray(
@@ -283,8 +308,6 @@ def get_network_device():
             output = println('Name: '+str(connection.Devices[0].Interface))
             output += println('IP: '+str(connection.Devices[0].Ip4Config.Addresses[0][0]))
         
-        size = max([max([len(y) for y in list(x.keys()) + ['']]) for x in settings.values()])
-        format = "      %%-%ds %%s" % (size + 5)
         for key, val in sorted(settings.items()):
             for name, value in val.items():
                 if name == 'ssid':
@@ -308,7 +331,7 @@ def get_network_device():
         if(str(strength) != ''):
             strengthString = '  strength:'+str(strength)+'%'
         else:
-            strengthString = '';
+            strengthString = ''
         output = println(str(
             (screen_page % len(active_connections))+1)
             +'/'+str(len(active_connections))
@@ -362,7 +385,7 @@ def get_network_connections():
     if(str(strength) != ''):
         strengthString = '  strength:'+str(strength)+'%'
     else:
-        strengthString = '';
+        strengthString = ''
     output = println(str((screen_page % len(all_connections))+1)+'/'+str(len(all_connections)) + strengthString)+output
     rospy.logdebug("--S--" + output + "--E--")
 
@@ -374,7 +397,7 @@ def println(text):
 
 #pad final result
 def padResult(text):
-    return (text+(' '*23 + '\n')*4)[0:141];
+    return (text+(' '*23 + '\n')*4)[0:141]
 
 #Attempts to activate a connection. This will join a wireless network for example
 def join_network():
@@ -382,7 +405,7 @@ def join_network():
     rospy.logdebug(
         'nmcli connection up '+str(gconn.GetSettings()['connection']['id']))
     #os.system('nmcli connection up '+str(gconn.GetSettings()['connection']['id']).replace(' ','\ '))
-    subprocess.Popen('nmcli connection up '+str(gconn.GetSettings()['connection']['id']).replace(' ','\ '),shell=True);
+    subprocess.Popen('nmcli connection up '+str(gconn.GetSettings()['connection']['id']).replace(' ','\ '),shell=True)
 
 pub_batteryVoltage = rospy.Publisher('voltage_battery', Float32, queue_size = 1)
 pub_batteryCurrent = rospy.Publisher('current_battery', Float32, queue_size = 1)

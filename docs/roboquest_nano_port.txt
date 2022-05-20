@@ -91,6 +91,17 @@ ExecStart=/usr/bin/dockerd -H fd:// -H tcp://0.0.0.0:2376
     systemctl stop serial-getty
     systemctl disable serial-getty
 
+    to verify the HAT serial port, connect an FTDI to 8 and 10,
+    9 for Ground. Run
+
+python3 -m serial.tools.miniterm /dev/ttyUSB0 57600
+
+and watch for:
+
+$$SCREEN 1 0
+$$TELEM 12.42 0.12 0.16 1.64 1.63 1.63 1.62 0.00 1
+$$TELEM 12.42 0.12 0.16 1.64 1.63 1.62 1.61 0.00 1
+
 10. setup the base OS
 
     On the Jetson Nano base OS:
@@ -110,14 +121,16 @@ ExecStart=/usr/bin/dockerd -H fd:// -H tcp://0.0.0.0:2376
         --privileged \
         --rm \
         --net=host \
-        --device /dev/video0:/dev/video0 \
-        --device /dev/gpiochip0:/dev/gpiochip0 \
-        --device /dev/gpiochip1:/dev/gpiochip1 \
-        --device /dev/ttyS0:/dev/ttyS0 \
+        --device /dev/video0 \
+        --device /dev/gpiochip0 \
+        --device /dev/gpiochip1 \
+        --device /dev/ttyS0 \
         roboquest \
         /bin/bash --login
 
     - systemctl stop serial-getty@ttyS0.service
+    - chgrp dialout /dev/ttyS0
+    - chmod 0660 /dev/ttyS0
     - export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/src/catkin_ws/src/roboquest_ui/node_modules/opencv-build/opencv/build/lib
     - source /usr/src/catkin_ws/devel/setup.bash
     - roslaunch roboquest_ui server.launch
