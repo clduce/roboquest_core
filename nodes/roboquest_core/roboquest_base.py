@@ -22,7 +22,7 @@ rospy.logdebug(f"roboquest_base parameters: hat_port:{hat_port}"
                f" , hat_data_rate:{hat_data_rate}")
 hat = serial.Serial(port=hat_port,
                     baudrate=hat_data_rate,
-                    bytesize=7,
+                    bytesize=8,
                     parity='N',
                     stopbits=1,
                     xonxoff=False,
