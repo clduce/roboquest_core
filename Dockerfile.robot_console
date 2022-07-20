@@ -3,7 +3,7 @@
 #
 FROM ros_base
 
-LABEL version="3"
+LABEL version="5"
 LABEL description="Robot Console"
 LABEL maintainer="Bill Mania <bill@manialabs.us>"
 ARG DEBIAN_FRONTEND=noninteractive
