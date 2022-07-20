@@ -1,0 +1,20 @@
+The microcontroller on the HAT is programmed using the Olimex AVR
+ISP Mark II programmer. For use with a Linux system, use
+dfu-programmer to update the firmware on the programmer itself,
+then use avrdude with the programmer to install firmware onto the
+HAT.
+
+avrdude versions 6.X or greater must be patched to work with the
+Olimex. See the Olimex documentation at
+https://www.olimex.com/Products/AVR/Programmers/AVR-ISP-MK2/resources/AVR-ISP-MK2.pdf
+
+The avrdude command line is:
+
+avrdude \
+    -vvv \
+    -c avrispmkII \
+    -P usb \
+    -B 16 \
+    -p m328pb \
+    -e \
+    -U flash:w:{NEW_HEX_FILE}

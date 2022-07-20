@@ -1,5 +1,15 @@
 Start with a Jetson Nano and a 16 GB microSD.
 
+There is uncertainty with the J41 pins 8 and 10 UART
+(/dev/ttyTHS1) on the Nano P3450. The symptom is noise on the
+receive line when connected to the HAT. See the Nvidia document
+"Data Sheet NVIDIA Jetson Nano System-on-Module" section 4.7.3
+for a possible explanation and solution.
+
+So far, the Nano P3541 doesn't exhibit that issue.
+
+Yes, the models are P3450 (the older) and P3541 (the newer).
+
 Original RaspPi 4B RoboQuest image is at:
 https://www.dropbox.com/sh/evnzuc834vnjjmj/AABx1pD6jgx494rnO99IorSBa?dl=0
 
@@ -76,20 +86,9 @@ ExecStart=/usr/bin/dockerd -H fd:// -H tcp://0.0.0.0:2376
 
     docker build -t roboquest -f Dockerfile.roboquest .
 
-9. disable the serial console in the base OS
+9. confirm the nvgetty service, which uses /dev/ttyTHS1, has been stopped
 
     The RoboQuest PiHAT uses that UART
-
-    Didn't figure out how to permanently disable the serial console.
-    Instead, stop it via systemctl before starting the application.
-
-    edit /boot/extlinux/extlinux.conf and remove the ttyS0
-    console entry.
-
-    systemctl stop nvgetty
-    systemctl disable nvgetty
-    systemctl stop serial-getty
-    systemctl disable serial-getty
 
     to verify the HAT serial port, connect an FTDI to 8 and 10,
     9 for Ground. Run
@@ -106,7 +105,7 @@ $$TELEM 12.42 0.12 0.16 1.64 1.63 1.62 1.61 0.00 1
 
     On the Jetson Nano base OS:
 
-    1. mkdir /home/ubuntu/catkin_ws/src
+    1. mkdir -p /home/ubuntu/catkin_ws/src
     2. cd /home/ubuntu/catkin_ws/src
     3. git clone https://github.com/clduce/roboquest_core
     4. cd roboquest_core
@@ -121,16 +120,25 @@ $$TELEM 12.42 0.12 0.16 1.64 1.63 1.62 1.61 0.00 1
         --privileged \
         --rm \
         --net=host \
-        --device /dev/video0 \
-        --device /dev/gpiochip0 \
-        --device /dev/gpiochip1 \
-        --device /dev/ttyS0 \
+        -v /var/run/dbus:/var/run/dbus \
         roboquest \
         /bin/bash --login
 
-    - systemctl stop serial-getty@ttyS0.service
-    - chgrp dialout /dev/ttyS0
-    - chmod 0660 /dev/ttyS0
     - export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/src/catkin_ws/src/roboquest_ui/node_modules/opencv-build/opencv/build/lib
     - source /usr/src/catkin_ws/devel/setup.bash
     - roslaunch roboquest_ui server.launch
+
+### VERIFIED
+
+- roboquest starts without complaint
+- telemetry from HAT
+- motor enable/disable
+- motor control
+- get_network_device and get_network_connections
+
+### NOT VERIFIED
+
+- servo control
+- camera video
+- writing to screens 2, 3, and 4 on the UI board
+  must write with 8 data bits, but must read with 7 data bits
