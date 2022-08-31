@@ -121,8 +121,9 @@ $$TELEM 12.42 0.12 0.16 1.64 1.63 1.62 1.61 0.00 1
         --rm \
         --net=host \
         -v /var/run/dbus:/var/run/dbus \
+        -v /dev/video0:/dev/video0 \
         roboquest \
-        /bin/bash --login
+        /bin/bash --login src/roboquest_core/scripts/start.bash
 
     - export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/src/catkin_ws/src/roboquest_ui/node_modules/opencv-build/opencv/build/lib
     - source /usr/src/catkin_ws/devel/setup.bash
@@ -135,10 +136,10 @@ $$TELEM 12.42 0.12 0.16 1.64 1.63 1.62 1.61 0.00 1
 - motor enable/disable
 - motor control
 - get_network_device and get_network_connections
+- camera video
+- writing to screens 2, 3, and 4 on the UI board
 
 ### NOT VERIFIED
 
 - servo control
-- camera video
-- writing to screens 2, 3, and 4 on the UI board
-  must write with 8 data bits, but must read with 7 data bits
+
