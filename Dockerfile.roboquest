@@ -3,7 +3,7 @@
 #
 FROM robot_console
 
-LABEL version="7"
+LABEL version="8"
 LABEL description="RoboQuest"
 LABEL maintainer="Bill Mania <bill@manialabs.us>"
 ARG DEBIAN_FRONTEND=noninteractive
