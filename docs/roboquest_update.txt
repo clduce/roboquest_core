@@ -44,13 +44,16 @@ https://raspberrytips.com/create-image-sd-card/
     # /boot/firmware/config.txt.
 
     verify /dev/i2c-1 exists
-    add I2C bus 6:
-    echo "
-#
+    
+add I2C bus 6:
+echo "#
 # To enable the second onboard I2C bus.
+# Enable a software implementation of I2C6 so we can have clock stretching
 #
 dtoverlay=i2c-rtc,mcp7940x
-dtoverlay=i2c6,pins_0_1" >> /boot/firmware/usercfg.txt
+#dtoverlay=i2c6,pins_0_1 
+dtoverlay=i2c-gpio,bus=6,i2c_gpio_delay_us=1,i2c_gpio_sda=0,i2c_gpio_scl=1
+" >> /boot/firmware/usercfg.txt
 
 3. Install ROS Noetic base
     http://wiki.ros.org/noetic/Installation/Ubuntu
